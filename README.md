@@ -23,3 +23,13 @@ Screenshot of the import interface:
 Screenshot of the Spirit Temple collision with collision settings (in materials) of the child-side exit:
 
 ![spirit temple and materials](https://421.es/doyu/1lyxa7)
+
+## References
+
+Consulted on (around) 2020-08-18
+
+[The Collision Mesh Format page of the CloudModding wiki.](https://wiki.cloudmodding.com/oot/Collision_Mesh_Format)
+
+[The OoT64 decompilation project.](https://github.com/zeldaret/oot) (and especially [mzxrules](https://github.com/mzxrules)' [z_bgcheck.c](https://github.com/mzxrules/oot/blob/z_bgcheck/src/code/z_bgcheck.c) decompilation work)
+
+The `Collision` part of the [zzconvert manual](http://www.z64.me/tools/zzconvert/manual).
