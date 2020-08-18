@@ -1,0 +1,25 @@
+# zelda64-collision-import-blender
+
+A Blender **2.8x** addon for importing collision from `.zscene` and `.zobj` files.
+
+## Collision header offset
+
+The mesh collision header offset is found automatically in `.zscene` files with the `0x03` command in the scene header. (but can still be manually specified if needed)
+
+For `.zobj` files, the header offset must be defined manually in the import options.
+
+## Usage
+
+Materials are created for each unique collision type. Properties are displayed under the `z64 collision` panel. Check `reduced_info` to hide settings set to default values.
+
+I recommend using edit mode and face select mode while having material properties and the `z64 collision` panel in view.
+
+## Screenshots
+
+Screenshot of the import interface:
+
+![import interface](https://421.es/doyu/1lyxei)
+
+Screenshot of the Spirit Temple collision with collision settings (in materials) of the child-side exit:
+
+![spirit temple and materials](https://421.es/doyu/1lyxa7)
