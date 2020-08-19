@@ -412,6 +412,10 @@ class ZELDA64_OT_mesh_collision_conveyor_direction_arrows(bpy.types.Operator):
         default='SELECTION',
     )
 
+    trust_enable_conveyor: bpy.props.BoolProperty(
+        default=True
+    )
+
     def execute(self, context):
         use_materials = None
         if self.use == 'SELECTION':
@@ -437,7 +441,10 @@ class ZELDA64_OT_mesh_collision_conveyor_direction_arrows(bpy.types.Operator):
                 use_materials[object] = (
                     material for material in object.data.materials
                     if material.z64_import_mesh_collision.is_import_material
-                        and material.z64_import_mesh_collision.enable_conveyor
+                        and (
+                            material.z64_import_mesh_collision.enable_conveyor
+                            or (not self.trust_enable_conveyor and material.z64_import_mesh_collision.polytype.conveyor_speed != '0')
+                        )
                 )
         for object, materials in use_materials.items():
             materials = tuple(materials)
