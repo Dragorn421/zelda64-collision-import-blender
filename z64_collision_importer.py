@@ -374,6 +374,112 @@ class CollisionImporter:
         return material
         #return bpy.data.materials.new(f'ign={ignore_flags:b} enconv={enable_conveyor} pt{polytype_index}=0x{polytype_hi:08X}_{polytype_lo:08X}')
 
+def add_arrow(bm, transform, material_index):
+    vertex_cos = (
+        (-2, 2),
+        ( 0, 4),
+        ( 2, 2),
+        ( 1, 2),
+        ( 1,-4),
+        (-1,-4),
+        (-1, 2),
+    )
+    faces_vertices = (
+        (0, 1, 2),
+        (3, 4, 5, 6),
+    )
+    vertices = tuple(
+        bm.verts.new(
+            transform @ mathutils.Vector((co[0], co[1], 0))
+        ) for co in vertex_cos
+    )
+    for face_vertices in faces_vertices:
+        face = bm.faces.new(vertices[i] for i in face_vertices)
+        face.material_index = material_index
+
+class ZELDA64_OT_mesh_collision_conveyor_direction_arrows(bpy.types.Operator):
+    bl_idname = 'zelda64.mesh_collision_conveyor_direction_arrows'
+    bl_label = 'View conveyor direction of z64 collision materials'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    use: bpy.props.EnumProperty(
+        items=(
+            ('SELECTION','Selection','Selected objects',0),
+            ('SCENE','Scene','All objects in the scene',1),
+            ('ALL_SCENES','All Scenes','All objects in all scenes',2),
+            ('MATERIAL','Material','Faces of current object using the current material',3),
+        ),
+        default='SELECTION',
+    )
+
+    def execute(self, context):
+        use_materials = None
+        if self.use == 'SELECTION':
+            use_objects = context.selected_objects
+        elif self.use == 'SCENE':
+            use_objects = context.scene.objects
+        elif self.use == 'ALL_SCENES':
+            use_objects = (
+                object for object in (
+                    scene.objects for scene
+                    in bpy.data.scenes
+                )
+            )
+        elif self.use == 'MATERIAL':
+            use_materials = {
+                context.object: (context.material,)
+            }
+        if use_materials is None:
+            use_materials = dict()
+            for object in use_objects:
+                if object.type != 'MESH':
+                    continue
+                use_materials[object] = (
+                    material for material in object.data.materials
+                    if material.z64_import_mesh_collision.is_import_material
+                        and material.z64_import_mesh_collision.enable_conveyor
+                )
+        for object, materials in use_materials.items():
+            materials = tuple(materials)
+            if not materials:
+                continue
+            mesh_name = f'{object.name} conveyor_direction'
+            mesh = bpy.data.meshes.new(mesh_name)
+            bm = bmesh.new()
+            try:
+                for material in materials:
+                    for face in object.data.polygons:
+                        if object.data.materials[face.material_index] != material:
+                            continue
+                        face_size = face.area ** (1/3)
+                        scale = face_size / 2
+                        location = face.center.copy()
+                        location.z += face_size * 3
+                        rotation = (
+                            material.z64_import_mesh_collision.polytype.conveyor_direction
+                            / 0x40 * 2 * math.pi
+                            + math.pi
+                        )
+                        transform = (
+                            mathutils.Matrix.Translation(location)
+                            @ mathutils.Matrix.Rotation(rotation, 4, 'Z')
+                            @ mathutils.Matrix.Scale(scale, 4)
+                        )
+                        # 0x30 is -x, 0x20 is +y, 0x00 is -y
+                        material_index = len(mesh.materials)
+                        mesh.materials.append(material)
+                        add_arrow(bm, transform, material_index)
+                bm.to_mesh(mesh)
+            except:
+                bpy.data.meshes.remove(mesh)
+                raise
+            finally:
+                bm.free()
+            mesh_object = bpy.data.objects.new(mesh_name, mesh)
+            mesh_object.parent = object
+            bpy.context.scene.collection.objects.link(mesh_object)
+        return {'FINISHED'}
+
 class ZELDA64_OT_search_material_by_mesh_collision_properties(bpy.types.Operator):
     bl_idname = 'zelda64.search_material_by_mesh_collision_properties'
     bl_label = 'Search z64 collision materials'
@@ -590,6 +696,7 @@ classes = (
     ZELDA64_PT_material_mesh_collision,
     ZELDA64_OT_import_collision,
     ZELDA64_OT_search_material_by_mesh_collision_properties,
+    ZELDA64_OT_mesh_collision_conveyor_direction_arrows,
 )
 
 def register():
