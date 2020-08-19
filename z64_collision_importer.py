@@ -359,7 +359,7 @@ class CollisionImporter:
         polytype_props.wall_damage = polytype_lo & 0x8000000 != 0
         polytype_props.conveyor_direction = polytype_lo >> 21 & 0x3F
         polytype_props.conveyor_speed = '{:X}'.format(polytype_lo >> 18 & 7)
-        polytype_props.hookshot = polytype_lo >> 17 != 0
+        polytype_props.hookshot = polytype_lo >> 17 & 1 != 0
         polytype_props.echo = polytype_lo >> 11 & 0x3F
         polytype_props.lighting = polytype_lo >> 6 & 0x1F
         polytype_props.slope = '{:X}'.format(polytype_lo >> 4 & 3)
