@@ -64,7 +64,7 @@ class ZELDA64_MaterialMeshCollisionPolytypeProperties(bpy.types.PropertyGroup):
     special: bpy.props.EnumProperty(
         items=(
             ('0','None','',0),
-            #('1','Camera Related? Used in Haunted Wasteland. Part of Function 80036870','',1),
+            ('1','0x1 ? Camera Related?','wiki: "Used in Haunted Wasteland. Part of Function 80036870"',1),
             ('2','Lava','',2),
             ('3','Lava 1','Difference from Lava unknown',3),
             ('4','Shallow Sand','',4),
@@ -84,6 +84,8 @@ class ZELDA64_MaterialMeshCollisionPolytypeProperties(bpy.types.PropertyGroup):
     # low word
     wall_damage: bpy.props.BoolProperty()
     # https://discord.com/channels/388361645073629187/388362111534759942/658941992633368578
+    # based on wasteland exit: 0x30 is -x, 0x20 is +y, 0x00 is -y (blender axes)
+    # -> in-game axes: 0x10 is +x, 0x00 is +z
     conveyor_direction: bpy.props.IntProperty()
     conveyor_speed: bpy.props.EnumProperty(
         items=(
@@ -147,7 +149,10 @@ class ZELDA64_PT_material_mesh_collision(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        return context.material.z64_import_mesh_collision.is_import_material
+        return (
+            hasattr(context, 'material')
+            and context.material.z64_import_mesh_collision.is_import_material
+        )
 
     def draw(self, context):
         props = context.material.z64_import_mesh_collision
@@ -368,13 +373,14 @@ def hexProperty_update_factory(attr):
         if value == '':
             return
         newValue = None
-        if re.match(r'(?:0x)[0-9a-fA-F]+', value):
+        if re.match(r'^(?:0x)?[0-9a-fA-F]+$', value):
             if len(value) < 2 or value[:2] != '0x':
                 newValue = f'0x{value}'
         else:
             newValue = ''
         if newValue is not None:
             setattr(self, attr, newValue)
+    return hexProperty_update
 
 @bpy_extras.io_utils.orientation_helper(axis_forward='-Z', axis_up='Y')
 class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
