@@ -24,6 +24,10 @@ Screenshot of the Spirit Temple collision with collision settings (in materials)
 
 ![spirit temple and materials](https://421.es/doyu/1lyxa7)
 
+Screenshot of the Royal Tomb collision with colored materials:
+
+![royal tomb with colored materials](https://421.es/doyu/1lznxy)
+
 ## References
 
 Consulted on (around) 2020-08-18

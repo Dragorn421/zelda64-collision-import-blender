@@ -28,6 +28,7 @@ import mathutils
 
 import re
 import struct
+import random
 import math
 
 class ZELDA64_ImportMeshCollision_SceneProperties(bpy.types.PropertyGroup):
@@ -267,10 +268,11 @@ class MeshCollisionHeader:
 
 class CollisionImporter:
 
-    def __init__(self, global_matrix, mesh, bm, log):
+    def __init__(self, global_matrix, mesh, bm, options, log):
         self.global_matrix = global_matrix
         self.mesh = mesh
         self.bmesh = bm
+        self.options = options
         self.log = log
         self.material_indices = dict()
 
@@ -289,6 +291,11 @@ class CollisionImporter:
             if material_index is None:
                 material_index = len(self.mesh.materials)
                 material = self.create_polygon_material(ignore_flags, enable_conveyor, polytype_index, polytype_hi, polytype_lo)
+                if self.options.set_material_color:
+                    rand = random.Random(key)
+                    material.diffuse_color = [rand.random() for i in range(3)] + [1]
+                    material.specular_intensity = 0
+                    material.roughness = 1
                 self.mesh.materials.append(material)
                 self.material_indices[key] = material_index
             return material_index
@@ -406,6 +413,11 @@ class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.Import
         description='Set Clip End so that the whole mesh can be viewed more easily',
         default=True
     )
+    set_material_color: bpy.props.BoolProperty(
+        name='Color Materials',
+        description='Set a different color for each collision material created',
+        default=True
+    )
 
     segment: bpy.props.EnumProperty(
         items=[
@@ -474,7 +486,7 @@ class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.Import
         mesh = bpy.data.meshes.new('z64collision')
         bm = bmesh.new()
         try:
-            collision_importer = CollisionImporter(global_matrix, mesh, bm, log=self)
+            collision_importer = CollisionImporter(global_matrix, mesh, bm, options=self, log=self)
             collision_importer.import_collision(data, mesh_collision_header)
             bm.to_mesh(mesh)
         except:
