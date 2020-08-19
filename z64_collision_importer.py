@@ -598,6 +598,16 @@ class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.Import
         default='AUTO'
     )
 
+    file_type: bpy.props.EnumProperty(
+        items=[
+            ('AUTO','Auto','zobj if .zobj, zscene if .zscene',0),
+            ('zscene','zscene','Scene file, will read the scene header unless a header offset is specified',1),
+            ('zobj','zobj','Object file',2),
+        ],
+        name='File Type',
+        description='Type of the file to import, for locating the mesh collision header and for sanity checks',
+        default='AUTO'
+    )
     header_offset: bpy.props.StringProperty(
         name='Header Offset',
         description='Offset of the mesh collision header in the target file',
@@ -611,12 +621,24 @@ class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.Import
             from_up=self.axis_up,
         ).to_4x4()
         global_matrix @= mathutils.Matrix.Scale(self.scale, 4)
+        _file_type = self.file_type
+        def get_file_type():
+            nonlocal _file_type
+            if _file_type == 'AUTO':
+                if self.filepath.endswith('.zscene'):
+                    _file_type = 'zscene'
+                elif self.filepath.endswith('.zobj'):
+                    _file_type = 'zobj'
+                else:
+                    self.error(f'Cannot determine file type (zscene/zobj) automatically (set it manually) from filepath {self.filepath}')
+                    _file_type = None
+            return _file_type
         # load data
         self.info(f'Reading {self.filepath}')
         with open(self.filepath, 'rb') as f:
             data = f.read()
         # load header
-        if self.header_offset == '':
+        if not self.header_offset and get_file_type() == 'zscene':
             mesh_collision_header_offset = None
             scene_header_command_index = 0
             while True:
@@ -633,14 +655,24 @@ class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.Import
                 elif command_id == 0x14:
                     break
                 scene_header_command_index += 1
-        else:
+        elif self.header_offset:
             mesh_collision_header_offset = int(self.header_offset)
+        else:
+            file_type = get_file_type()
+            self.error(f'Cannot determine header offset automatically for file type {file_type}')
+            return {'CANCELLED'}
         self.info(f'Reading mesh collision header at 0x{mesh_collision_header_offset:X}')
         mesh_collision_header = MeshCollisionHeader()
         mesh_collision_header.load(data, mesh_collision_header_offset)
         # header sanity checks
         if self.segment == 'AUTO':
-            expected_segment = 2 if self.filepath.endswith('.zscene') else 6
+            file_type = get_file_type()
+            if not file_type:
+                return {'CANCELLED'}
+            expected_segment = {
+                'zscene': 2,
+                'zobj': 6,
+            }[file_type]
             self.info(f'Expected segment defaulted to 0x{expected_segment:X}')
         else:
             expected_segment = int(self.segment)
