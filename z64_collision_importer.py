@@ -320,7 +320,7 @@ class CollisionImporter:
                 val_a, val_b, val_c,
                 normal_x, normal_y, normal_z,
                 d
-            ) = struct.unpack_from('>hHHHhhhh', data, offset + i * 16)
+            ) = struct.unpack_from('>HHHHhhhh', data, offset + i * 16)
             try:
                 face = self.bmesh.faces.new(self.vertices[val & 0x1FFF] for val in (val_a, val_b, val_c))
             except ValueError as e:
