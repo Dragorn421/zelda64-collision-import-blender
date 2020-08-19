@@ -374,6 +374,63 @@ class CollisionImporter:
         return material
         #return bpy.data.materials.new(f'ign={ignore_flags:b} enconv={enable_conveyor} pt{polytype_index}=0x{polytype_hi:08X}_{polytype_lo:08X}')
 
+class ZELDA64_OT_search_material_by_mesh_collision_properties(bpy.types.Operator):
+    bl_idname = 'zelda64.search_material_by_mesh_collision_properties'
+    bl_label = 'Search z64 collision materials'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    search_in: bpy.props.EnumProperty(
+        items=(
+            ('SELECTION','Selection','Selected objects',0),
+            ('SCENE','Scene','All objects in the scene',1),
+            ('ALL_SCENES','All Scenes','All objects in all scenes',2),
+        ),
+        default='SELECTION',
+    )
+
+    search_attr: bpy.props.StringProperty()
+    search_value: bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        if self.search_in == 'SELECTION':
+            search_objects = context.selected_objects
+        elif self.search_in == 'SCENE':
+            search_objects = context.scene.objects
+        elif self.search_in == 'ALL_SCENES':
+            search_objects = []
+            for scene in bpy.data.scenes:
+                search_objects.extend(scene.objects)
+        search_polytype_props = self.search_attr in ZELDA64_MaterialMeshCollisionPolytypeProperties.__annotations__
+        for object in search_objects:
+            if object.type != 'MESH':
+                continue
+            materials = object.data.materials
+            matching_material_indices = []
+            for i in range(len(materials)):
+                material = materials[i]
+                props = material.z64_import_mesh_collision
+                if not props.is_import_material:
+                    continue
+                value = getattr(props.polytype if search_polytype_props else props, self.search_attr)
+                if str(value) == self.search_value:
+                    matching_material_indices.append(i)
+                    self.report({'INFO'}, material.name)
+            if not matching_material_indices:
+                continue
+            bm = bmesh.new()
+            try:
+                bm.from_mesh(object.data)
+                for face in bm.faces:
+                    if face.material_index in matching_material_indices:
+                        face.select_set(True)
+                bm.to_mesh(object.data)
+            finally:
+                bm.free()
+        return {'FINISHED'}
+
 def hexProperty_update_factory(attr):
     def hexProperty_update(self, context):
         value = getattr(self, attr)
@@ -532,6 +589,7 @@ classes = (
     ZELDA64_MaterialMeshCollisionProperties,
     ZELDA64_PT_material_mesh_collision,
     ZELDA64_OT_import_collision,
+    ZELDA64_OT_search_material_by_mesh_collision_properties,
 )
 
 def register():
