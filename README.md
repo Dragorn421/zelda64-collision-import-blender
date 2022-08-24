@@ -37,3 +37,33 @@ Consulted on (around) 2020-08-18
 [The OoT64 decompilation project.](https://github.com/zeldaret/oot) (and especially [mzxrules](https://github.com/mzxrules)' [z_bgcheck.c](https://github.com/mzxrules/oot/blob/z_bgcheck/src/code/z_bgcheck.c) decompilation work)
 
 The `Collision` part of the [zzconvert manual](http://www.z64.me/tools/zzconvert/manual).
+
+## Custom colored materials
+
+After importing some collision, the collision properties can be accessed programatically. A useful application is coloring the materials with your own logic.
+
+The following example sets all materials to a random color solely based on the camera used, also making translucent the ones using the index 3.
+
+```py
+import bpy
+
+import random
+
+seed = random.random()
+
+for material in bpy.data.materials:
+    collision_props = material.z64_import_mesh_collision # ZELDA64_MaterialMeshCollisionProperties
+    if not collision_props.is_import_material:
+        continue
+    polytype_props = collision_props.polytype # ZELDA64_MaterialMeshCollisionPolytypeProperties
+    color_key = seed, polytype_props.camera
+    alpha = 0.2 if polytype_props.camera == 3 else 1
+    rand = random.Random(color_key)
+    material.diffuse_color = [rand.random() for i in range(3)] + [alpha]
+    material.specular_intensity = 0
+    material.roughness = 1
+```
+
+This example running on OoT's back alley day scene can result in:
+
+![back alley day with custom colors](screenshots/back_alley_day_custom_colors.png)
