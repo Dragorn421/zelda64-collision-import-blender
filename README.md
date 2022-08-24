@@ -18,15 +18,15 @@ I recommend using edit mode and face select mode while having material propertie
 
 Screenshot of the import interface:
 
-![import interface](https://421.es/doyu/1lyxei)
+![import interface](screenshots/import_interface.png)
 
 Screenshot of the Spirit Temple collision with collision settings (in materials) of the child-side exit:
 
-![spirit temple and materials](https://421.es/doyu/1lyxa7)
+![spirit temple and materials](screenshots/spirit_temple_and_materials.png)
 
 Screenshot of the Royal Tomb collision with colored materials:
 
-![royal tomb with colored materials](https://421.es/doyu/1lznxy)
+![royal tomb with colored materials](screenshots/royal_tomb_with_colored_materials.png)
 
 ## References
 
