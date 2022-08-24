@@ -666,7 +666,7 @@ class ZELDA64_OT_import_collision(bpy.types.Operator, bpy_extras.io_utils.Import
                 self.error(f'No 0x03 command was found in the scene header. ({scene_header_command_index} commands read in total)')
                 return {'CANCELLED'}
         elif self.header_offset:
-            mesh_collision_header_offset = int(self.header_offset)
+            mesh_collision_header_offset = int(self.header_offset, 16)
         else:
             file_type = get_file_type()
             self.error(f'Cannot determine header offset automatically for file type {file_type}')
