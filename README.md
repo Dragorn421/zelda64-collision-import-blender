@@ -1,6 +1,8 @@
 # zelda64-collision-import-blender
 
-A Blender **2.8x** addon for importing collision from `.zscene` and `.zobj` files.
+A Blender **4.1.1**+ addon for importing collision from `.zscene` and `.zobj` files.
+
+Previous version for Blender 2.8x: https://github.com/Dragorn421/zelda64-collision-import-blender/tree/blender2.8x
 
 ## Collision header offset
 
