@@ -386,7 +386,7 @@ class CollisionImporter:
                     polytype_lo,
                 )
                 if self.options.set_material_color:
-                    rand = random.Random(key)
+                    rand = random.Random(struct.pack("I" * len(key), *key))
                     material.diffuse_color = [rand.random() for i in range(3)] + [1]
                     material.specular_intensity = 0
                     material.roughness = 1
