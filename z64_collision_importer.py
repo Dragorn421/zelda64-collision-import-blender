@@ -17,7 +17,7 @@
 
 bl_info = {
     "name": "Import z64 collision",
-    "blender": (2, 80, 0),
+    "blender": (4, 1, 1),
     "category": "Import-Export",
 }
 
@@ -30,6 +30,8 @@ import re
 import struct
 import random
 import math
+from typing import Any
+from collections.abc import Callable
 
 
 class ZELDA64_ImportMeshCollision_SceneProperties(bpy.types.PropertyGroup):
@@ -187,9 +189,13 @@ class ZELDA64_PT_material_mesh_collision(bpy.types.Panel):
         )
 
     def draw(self, context):
-        props = context.material.z64_import_mesh_collision
-        polytype_props = props.polytype
-        global_props = context.scene.z64_import_mesh_collision
+        props: ZELDA64_MaterialMeshCollisionProperties = (
+            context.material.z64_import_mesh_collision
+        )
+        polytype_props: ZELDA64_MaterialMeshCollisionPolytypeProperties = props.polytype
+        global_props: ZELDA64_ImportMeshCollision_SceneProperties = (
+            context.scene.z64_import_mesh_collision
+        )
         self.layout.prop(global_props, "reduced_info")
         if global_props.reduced_info:
             box = self.layout.box()
@@ -275,7 +281,11 @@ class ZELDA64_PT_material_mesh_collision(bpy.types.Panel):
 
 class MeshCollisionHeader:
 
-    def load(self, data, mesh_collision_header_offset):
+    def load(self, data: bytes, mesh_collision_header_offset: int):
+        unpacked = struct.unpack_from(
+            ">hhhhhhHxxIHxxIIIHxxI", data, mesh_collision_header_offset
+        )
+        unpacked: tuple[int, ...]
         (
             self.minx,
             self.miny,
@@ -291,9 +301,7 @@ class MeshCollisionHeader:
             self.cameradata_segment_offset,
             self.waterbox_array_length,
             self.waterbox_array_segment_offset,
-        ) = struct.unpack_from(
-            ">hhhhhhHxxIHxxIIIHxxI", data, mesh_collision_header_offset
-        )
+        ) = unpacked
 
     def sanity_check_segments(self, expected_segment, log):
         offsets = (
@@ -330,15 +338,22 @@ class MeshCollisionHeader:
 
 class CollisionImporter:
 
-    def __init__(self, global_matrix, mesh, bm, options, log):
+    def __init__(
+        self,
+        global_matrix: mathutils.Matrix,
+        mesh: bpy.types.Mesh,
+        bm: bmesh.types.BMesh,
+        options: "ZELDA64_OT_import_collision",
+        log,
+    ):
         self.global_matrix = global_matrix
         self.mesh = mesh
         self.bmesh = bm
         self.options = options
         self.log = log
-        self.material_indices = dict()
+        self.material_indices = dict[Any, int]()
 
-    def import_collision(self, data, mesh_collision_header):
+    def import_collision(self, data: bytes, mesh_collision_header: MeshCollisionHeader):
         # todo ignoring some stuff here
         self.import_vertices(
             data,
@@ -349,10 +364,16 @@ class CollisionImporter:
             mesh_collision_header.polytypes_table_segment_offset & 0xFFFFFF
         )
 
-        def get_polygon_material_index(ignore_flags, enable_conveyor, polytype_index):
-            polytype_hi, polytype_lo = struct.unpack_from(
+        def get_polygon_material_index(
+            ignore_flags: int,
+            enable_conveyor: bool,
+            polytype_index: int,
+        ):
+            unpacked = struct.unpack_from(
                 ">II", data, polytypes_table_offset + polytype_index * 8
             )
+            unpacked: tuple[int, ...]
+            polytype_hi, polytype_lo = unpacked
             key = (ignore_flags, enable_conveyor, polytype_hi, polytype_lo)
             material_index = self.material_indices.get(key)
             if material_index is None:
@@ -380,7 +401,7 @@ class CollisionImporter:
             get_polygon_material_index,
         )
 
-    def import_vertices(self, data, offset, length):
+    def import_vertices(self, data: bytes, offset: int, length: int):
         self.vertices = [
             self.bmesh.verts.new(
                 self.global_matrix
@@ -390,10 +411,18 @@ class CollisionImporter:
         ]
         self.bmesh.verts.ensure_lookup_table()
 
-    def import_polygons(self, data, offset, length, get_polygon_material_index):
+    def import_polygons(
+        self,
+        data: bytes,
+        offset: int,
+        length: int,
+        get_polygon_material_index: Callable[[int, bool, int], int],
+    ):
         for i in range(length):
+            unpacked = struct.unpack_from(">HHHHhhhh", data, offset + i * 16)
+            unpacked: tuple[int, ...]
             (polytype_index, val_a, val_b, val_c, normal_x, normal_y, normal_z, d) = (
-                struct.unpack_from(">HHHHhhhh", data, offset + i * 16)
+                unpacked
             )
             try:
                 face = self.bmesh.faces.new(
@@ -420,18 +449,25 @@ class CollisionImporter:
         self.bmesh.faces.ensure_lookup_table()
 
     def create_polygon_material(
-        self, ignore_flags, enable_conveyor, polytype_index, polytype_hi, polytype_lo
+        self,
+        ignore_flags,
+        enable_conveyor,
+        polytype_index,
+        polytype_hi,
+        polytype_lo,
     ):
         material = bpy.data.materials.new(
             f"{ignore_flags:03b} {enable_conveyor:d} {polytype_index} {polytype_hi:08X}_{polytype_lo:08X}"
         )
-        props = material.z64_import_mesh_collision
+        props: ZELDA64_MaterialMeshCollisionProperties = (
+            material.z64_import_mesh_collision
+        )
         props.is_import_material = True
         # found the wiki source on accident https://discordapp.com/channels/388361645073629187/388362111534759942/535678606324793354
         # polytype
         props.polytype_index = polytype_index
         props.polytype_raw = f"{polytype_hi:08X}_{polytype_lo:08X}"
-        polytype_props = props.polytype
+        polytype_props: ZELDA64_MaterialMeshCollisionPolytypeProperties = props.polytype
         # polytype high word
         polytype_props.no_horse = polytype_hi >> 31 != 0
         polytype_props.minus_one_unit = polytype_hi >> 30 & 1 != 0
@@ -462,7 +498,11 @@ class CollisionImporter:
         # return bpy.data.materials.new(f'ign={ignore_flags:b} enconv={enable_conveyor} pt{polytype_index}=0x{polytype_hi:08X}_{polytype_lo:08X}')
 
 
-def add_arrow(bm, transform, material_index):
+def add_arrow(
+    bm: bmesh.types.BMesh,
+    transform: mathutils.Matrix,
+    material_index: int,
+):
     vertex_cos = (
         (-2, 2),
         (0, 4),
@@ -520,11 +560,13 @@ class ZELDA64_OT_mesh_collision_conveyor_direction_arrows(bpy.types.Operator):
         elif self.use == "MATERIAL":
             use_materials = {context.object: (context.material,)}
         if use_materials is None:
-            use_materials = dict()
+            use_materials = dict[bpy.types.Object, tuple[bpy.types.Material]]()
             for object in use_objects:
+                assert isinstance(object, bpy.types.Object)
                 if object.type != "MESH":
                     continue
-                use_materials[object] = (
+                assert isinstance(object.data, bpy.types.Mesh)
+                use_materials[object] = tuple(
                     material
                     for material in object.data.materials
                     if material.z64_import_mesh_collision.is_import_material
@@ -538,6 +580,8 @@ class ZELDA64_OT_mesh_collision_conveyor_direction_arrows(bpy.types.Operator):
                     )
                 )
         for object, materials in use_materials.items():
+            assert object.type == "MESH"
+            assert isinstance(object.data, bpy.types.Mesh)
             materials = tuple(materials)
             if not materials:
                 continue
@@ -617,11 +661,13 @@ class ZELDA64_OT_search_material_by_mesh_collision_properties(bpy.types.Operator
         for object in search_objects:
             if object.type != "MESH":
                 continue
+            assert isinstance(object.data, bpy.types.Mesh)
             materials = object.data.materials
             matching_material_indices = []
-            for i in range(len(materials)):
-                material = materials[i]
-                props = material.z64_import_mesh_collision
+            for i, material in enumerate(materials):
+                props: ZELDA64_MaterialMeshCollisionProperties = (
+                    material.z64_import_mesh_collision
+                )
                 if not props.is_import_material:
                     continue
                 value = getattr(
@@ -636,6 +682,7 @@ class ZELDA64_OT_search_material_by_mesh_collision_properties(bpy.types.Operator
             try:
                 bm.from_mesh(object.data)
                 for face in bm.faces:
+                    face: bmesh.types.BMFace
                     if face.material_index in matching_material_indices:
                         face.select_set(True)
                 bm.to_mesh(object.data)
